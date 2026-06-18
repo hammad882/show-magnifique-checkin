@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<title>Door Check-in — Show Magnifique</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'Helvetica Neue',sans-serif; background:#0f0510; color:#FAF7F2; min-height:100vh; }
+.wrap { max-width:440px; margin:0 auto; padding:28px 20px 40px; }
+.header { text-align:center; margin-bottom:24px; }
+.logo { font-size:11px; letter-spacing:3px; color:#B8860B; text-transform:uppercase; margin-bottom:6px; }
+h1 { font-size:20px; font-weight:400; margin-bottom:4px; }
+.sub { font-size:12px; color:#8a7a6a; }
+.stats { background:#1a0a0a; border-radius:12px; padding:16px 20px; margin-bottom:20px; }
+.stats-title { font-size:10px; letter-spacing:2px; color:#B8860B; text-transform:uppercase; margin-bottom:12px; }
+.stat-row { display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid #2a1010; font-size:13px; }
+.stat-row:last-child { border-bottom:none; font-weight:600; font-size:14px; }
+.stat-num { color:#B8860B; font-weight:600; }
+.scanner-box { background:#1a0a0a; border-radius:12px; padding:20px; margin-bottom:20px; }
+.scanner-title { font-size:10px; letter-spacing:2px; color:#B8860B; text-transform:uppercase; margin-bottom:16px; text-align:center; }
+#reader { width:100%; border-radius:8px; overflow:hidden; }
+#reader video { border-radius:8px; }
+.scan-btn { width:100%; padding:14px; border-radius:8px; border:none; background:#B8860B; color:#1a0a0a; font-size:15px; font-weight:700; cursor:pointer; letter-spacing:1px; margin-bottom:12px; }
+.scan-btn.stop { background:#2a1010; color:#B8860B; border:1px solid #B8860B; }
+.divider { display:flex; align-items:center; gap:10px; margin:16px 0; }
+.divider span { font-size:11px; color:#5a4a3a; white-space:nowrap; }
+.divider::before, .divider::after { content:''; flex:1; height:1px; background:#2a1010; }
+.manual-label { font-size:10px; letter-spacing:2px; color:#8a7a6a; text-transform:uppercase; margin-bottom:10px; text-align:center; }
+input[type=text] { width:100%; padding:13px; border-radius:8px; border:1px solid #3a2010; background:#0f0510; color:#FAF7F2; font-size:15px; text-align:center; letter-spacing:2px; }
+input[type=text]::placeholder { color:#5a4a3a; letter-spacing:1px; font-size:13px; }
+input[type=text]:focus { outline:none; border-color:#B8860B; }
+.manual-btn { width:100%; margin-top:10px; padding:13px; border-radius:8px; border:none; background:#8B1C1C; color:#FAF7F2; font-size:15px; font-weight:600; cursor:pointer; }
+.status-msg { text-align:center; font-size:13px; color:#8a7a6a; margin-top:12px; min-height:20px; }
+.status-msg.scanning { color:#B8860B; }
+.status-msg.error { color:#8B1C1C; }
+.result-box { display:none; border-radius:12px; padding:28px 24px; margin-bottom:20px; text-align:center; border:2px solid #1a7a3a; background:#0a1f0e; }
+.result-box.warning { border-color:#B8860B; background:#1a1200; }
+.result-box.error-box { border-color:#8B1C1C; background:#1a0505; }
+.result-icon { font-size:48px; margin-bottom:10px; line-height:1; }
+.result-status { font-size:20px; font-weight:700; margin-bottom:6px; }
+.result-guest { font-size:15px; color:#FAF7F2; margin-top:4px; }
+.result-label { font-size:12px; color:#8a7a6a; }
+.refresh-link { display:block; text-align:center; margin-top:16px; font-size:12px; color:#5a4a3a; cursor:pointer; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <p class="logo">Paris Corner × Intense Oud</p>
+    <h1>Door Check-in</h1>
+    <p class="sub">The Show Magnifique · Friday, June 19, 2026</p>
+  </div>
+
+  <div class="stats">
+    <div class="stats-title">Live Attendance</div>
+    <div class="stat-row"><span>Creators & Affiliates</span><span class="stat-num" id="s-aff">Loading...</span></div>
+    <div class="stat-row"><span>General Public</span><span class="stat-num" id="s-gen">Loading...</span></div>
+    <div class="stat-row"><span>Trade Partners</span><span class="stat-num" id="s-b2b">Loading...</span></div>
+    <div class="stat-row"><span>Total Arrived</span><span class="stat-num" id="s-total">Loading...</span></div>
+  </div>
+
+  <div class="result-box" id="resultBox">
+    <div class="result-icon" id="resultIcon"></div>
+    <div class="result-status" id="resultStatus"></div>
+    <div class="result-guest" id="resultGuest"></div>
+    <div class="result-label" id="resultLabel"></div>
+  </div>
+
+  <div class="scanner-box">
+    <div class="scanner-title">Scan Guest QR Code</div>
+    <div id="reader"></div>
+    <button class="scan-btn" id="startBtn" onclick="startScanner()">Open Camera & Scan</button>
+    <div class="status-msg" id="statusMsg"></div>
+    <div class="divider"><span>or enter manually</span></div>
+    <div class="manual-label">Type UID</div>
+    <input type="text" id="manualUID" placeholder="SM2026-X-XXXXXXXX"
+      autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" />
+    <button class="manual-btn" onclick="submitManual()">Check In</button>
+  </div>
+
+  <span class="refresh-link" onclick="loadStats()">↻ Refresh attendance counts</span>
+
+</div>
+
+<script>
+  // ============================================================
+  // REPLACE THIS WITH YOUR APPS SCRIPT WEB APP URL
+  // ============================================================
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbww0oI1WZzn0LP1dzDtiBBMEZ29L5HwA0ulttD7N1k45PmV4rwJf8lbWqet65hKHU0Ljg/exec";
+
+  let html5QrCode = null;
+  let scanning    = false;
+
+  window.onload = function() { loadStats(); };
+
+  function loadStats() {
+    document.getElementById('s-aff').textContent   = "Loading...";
+    document.getElementById('s-gen').textContent   = "Loading...";
+    document.getElementById('s-b2b').textContent   = "Loading...";
+    document.getElementById('s-total').textContent = "Loading...";
+
+    fetch(APPS_SCRIPT_URL + "?action=stats")
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById('s-aff').textContent   = data.AFFILIATE.arrived + " / " + data.AFFILIATE.total;
+        document.getElementById('s-gen').textContent   = data.GENERAL.arrived   + " / " + data.GENERAL.total;
+        document.getElementById('s-b2b').textContent   = data.B2B.arrived       + " / " + data.B2B.total;
+        const ta = data.AFFILIATE.arrived + data.GENERAL.arrived + data.B2B.arrived;
+        const tt = data.AFFILIATE.total   + data.GENERAL.total   + data.B2B.total;
+        document.getElementById('s-total').textContent = ta + " / " + tt;
+      })
+      .catch(() => {
+        document.getElementById('s-total').textContent = "Error loading";
+      });
+  }
+
+  function checkIn(uid) {
+    if (!uid) return;
+    uid = uid.trim().toUpperCase();
+    fetch(APPS_SCRIPT_URL + "?action=checkin&uid=" + encodeURIComponent(uid))
+      .then(r => r.json())
+      .then(data => {
+        showResult(data.status, data.message, data.guest);
+        loadStats();
+      })
+      .catch(() => showResult("error", "Connection error. Try again.", ""));
+  }
+
+  function showResult(status, message, guest) {
+    const box    = document.getElementById('resultBox');
+    const icon   = document.getElementById('resultIcon');
+    const stat   = document.getElementById('resultStatus');
+    const gname  = document.getElementById('resultGuest');
+    const glabel = document.getElementById('resultLabel');
+
+    box.className = "result-box";
+    if (status === "warning") box.classList.add("warning");
+    if (status === "error")   box.classList.add("error-box");
+    box.style.display = "block";
+
+    const color = status === "success" ? "#1a7a3a" : status === "warning" ? "#B8860B" : "#8B1C1C";
+    icon.textContent   = status === "success" ? "✓" : status === "warning" ? "⚠" : "✗";
+    icon.style.color   = color;
+    stat.textContent   = message;
+    stat.style.color   = color;
+    gname.textContent  = guest || "";
+    glabel.textContent = guest ? "Guest" : "";
+
+    setTimeout(() => {
+      box.style.display = "none";
+    }, 5000);
+  }
+
+  function submitManual() {
+    const uid = document.getElementById('manualUID').value;
+    if (!uid.trim()) return;
+    checkIn(uid);
+    document.getElementById('manualUID').value = "";
+  }
+
+  function startScanner() {
+    if (scanning) { stopScanner(); return; }
+
+    const btn = document.getElementById('startBtn');
+    const msg = document.getElementById('statusMsg');
+    btn.textContent = 'Stop Camera';
+    btn.classList.add('stop');
+    msg.textContent = 'Point camera at guest QR code...';
+    msg.className   = 'status-msg scanning';
+
+    html5QrCode = new Html5Qrcode("reader");
+    scanning    = true;
+
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps:10, qrbox:{ width:250, height:250 }, aspectRatio:1.0, showTorchButtonIfSupported:true },
+      onScanSuccess,
+      () => {}
+    ).catch(() => {
+      msg.textContent = 'Camera access denied. Please allow camera in browser settings.';
+      msg.className   = 'status-msg error';
+      btn.textContent = 'Open Camera & Scan';
+      btn.classList.remove('stop');
+      scanning = false;
+    });
+  }
+
+  function stopScanner() {
+    if (html5QrCode && scanning) {
+      html5QrCode.stop().then(() => {
+        scanning = false;
+        document.getElementById('startBtn').textContent = 'Open Camera & Scan';
+        document.getElementById('startBtn').classList.remove('stop');
+        document.getElementById('statusMsg').textContent = '';
+        document.getElementById('statusMsg').className   = 'status-msg';
+      });
+    }
+  }
+
+  function onScanSuccess(decodedText) {
+    stopScanner();
+    let uid = decodedText;
+    try {
+      const parsed = JSON.parse(decodedText);
+      if (parsed.uid) uid = parsed.uid;
+    } catch(e) {}
+    checkIn(uid);
+  }
+</script>
+</body>
+</html>
